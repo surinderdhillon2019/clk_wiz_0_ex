@@ -31,16 +31,15 @@ module clk_wiz_0_tb ();
 
   // Declare the input clock signals
   reg         clk_in1     = 1;
+  reg         clk_in2     = 1;
+  reg         clk_in1_reset = 0 ;
+  reg         clk_in2_reset = 0 ;
 
-  // The high bit of the sampling counter
-  wire        COUNT;
   // Status and control signals
   reg         reset      = 0;
   reg         power_down = 0;
   wire        input_clk_stopped;
   wire        locked;
-  reg         COUNTER_RESET = 0;
-  reg [13:0]  timeout_counter = 14'b00000000000000;
   wire [1:1]   CLK_OUT;
 
 
@@ -53,8 +52,22 @@ module clk_wiz_0_tb ();
   // Input clock generation
   //------------------------------------
   always begin
-    clk_in1 = #PER1_1 ~clk_in1;
-    clk_in1 = #PER1_2 ~clk_in1;
+    if (clk_in1_reset == 1'b1) begin 
+      clk_in1 = 1'b0; 
+    end else begin
+      clk_in1 = #PER1_1 ~clk_in1;
+      clk_in1 = #PER1_2 ~clk_in1;
+    end
+  end
+  // Input clock generation
+  //------------------------------------
+  always begin
+    if (clk_in2_reset == 1'b1) begin 
+      clk_in2 = 1'b0; 
+    end else begin
+      clk_in2 = #PER2_1 ~clk_in2;
+      clk_in2 = #PER2_2 ~clk_in2;
+    end
   end
 
   // Test sequence
@@ -92,35 +105,19 @@ module clk_wiz_0_tb ();
     $finish;
   end
 
-
-   always@(posedge clk_in1) begin
-      timeout_counter <= timeout_counter + 1'b1;
-      if (timeout_counter == 16'b1100000000000000) begin
-         if (locked != 1'b1) begin
-            $display("ERROR : NO LOCK signal");
-            $display("SYSTEM_CLOCK_COUNTER : %0d\n",$time/PER1);
-            $finish;
-         end
-      end
-   end
-
   // Instantiation of the example design containing the clock
   //    network and sampling counters
   //---------------------------------------------------------
   clk_wiz_0_exdes 
     dut
-   (// Clock in ports
-    // Reset for logic in example design
-    .COUNTER_RESET      (COUNTER_RESET),
+   (
     .CLK_OUT            (CLK_OUT),
-    // High bits of the counters
-    .COUNT              (COUNT),
-    // Status and control signals
     .reset              (reset),
     .power_down         (power_down),
     .input_clk_stopped  (input_clk_stopped),
     .locked             (locked),
-    .clk_in1            (clk_in1)
+    .clk_in1            (clk_in1),
+    .clk_in2            (clk_in2)
 );
 
 // Freq Check 
