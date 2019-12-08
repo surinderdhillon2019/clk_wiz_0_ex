@@ -76,18 +76,17 @@ module clk_wiz_0_tb ();
     dac_clk_reset = 1;
     test_phase = "reset";
     reset = 1;
-    #(PER1*200);
-
-    reset = 0;
-    #(PER1*200);
-    dac_clk_reset = 0;    
-    test_phase = "wait lock";
-    // `wait_lock;
     #(PER1*20);
-
+    reset = 0; 
+    #(PER1*20);
     // toggle dac clk on/off 
-    for ( i =0; i < 2 ; i = i +1) begin 
-      // dac_clk_reset = ~dac_clk_reset;
+    for ( i =0; i < 4 ; i = i +1) begin
+      dac_clk_reset = ~dac_clk_reset;
+      if (dac_clk_reset) begin
+        test_phase = "clk_pcie"; 
+      end else begin
+        test_phase = "clk_dac"; 
+      end      
       #(PER1*COUNT_PHASE);
     end
 

@@ -59,37 +59,59 @@ parameter STATE_WAIT_PCIE_LOCKED  = 3'b101 ;
 parameter STATE_PCIE_CLK_LOCKED   = 3'b110 ;
 
  //-------------Internal Variables---------------------------
- reg   [SIZE-1:0]          state        ;// Seq part of the FSM
- reg   [SIZE-1:0]          next_state   ;// combo part of FSM
- reg   [15:0]              counter =0   ; // counter to wait for locked signal
- reg   [15:0]              counter_limit = 100;  // 100 clk cycle -> 16'b‭0000000001100100‬ 
+ reg   [SIZE-1:0]          state        ;        // Seq part of the FSM
+ reg   [SIZE-1:0]          next_state   ;        // combo part of FSM
+ reg   [15:0]              counter =0   ;        // counter to wait for locked signal
+ reg   [15:0]              counter_limit = 100;  // 100 clk cycle 
  reg                       counter_expired = 0 ;
  reg                       clr_counter     = 1 ;
- 
+ reg                       select_dac      = 1 ;
+ reg                       select_clk      = 0 ;
 
  //----------State Machine startes Here------------------------
- 
-always begin
+always @* begin
   case (state)
-    STATE_IDLE:
-      clk_in1 = #PER_DAC_CLK 1'b0 ;
-    STATE_DAC_CLK_DETECTED:
-      clk_in1 = #PER_DAC_CLK dac_clk ;
-    STATE_WAIT_DAC_LOCKED:
-      clk_in1 = #PER_DAC_CLK dac_clk ;
+    STATE_IDLE:      
+      select_dac  <=  1'b0 ;
+    STATE_DAC_CLK_DETECTED:      
+      select_dac <=  1'b1 ;
+    STATE_WAIT_DAC_LOCKED:      
+      select_dac <=  1'b1 ;
     STATE_DAC_CLK_LOCKED:
-      clk_in1 = #PER_DAC_CLK dac_clk ;
-    STATE_PCIE_CLK_DETECTED: 
-      clk_in1 = #PER_PCIE_CLK pcie_clk ;
+      select_dac <=  1'b1 ;
+    STATE_PCIE_CLK_DETECTED:       
+      select_dac <=  1'b0 ;
+    STATE_WAIT_PCIE_LOCKED:      
+      select_dac <=  1'b0 ;
+    STATE_PCIE_CLK_LOCKED:      
+      select_dac <=  1'b1 ;
+    default:      
+      select_dac <=  1'b0 ;
+  endcase
+end
+always @* begin
+  case (state)
+    STATE_IDLE:      
+      select_dac  <=  1'b0 ;
+    STATE_DAC_CLK_DETECTED:
+      select_clk <= 1'b1 ;      
+    STATE_WAIT_DAC_LOCKED:
+      select_clk <= 1'b1 ;      
+    //STATE_DAC_CLK_LOCKED:
+      //select_clk <= 1'b1 ;      
+    STATE_PCIE_CLK_DETECTED:
+      select_clk <= 1'b1 ;       
     STATE_WAIT_PCIE_LOCKED:
-      clk_in1 = #PER_PCIE_CLK pcie_clk ;
-    STATE_PCIE_CLK_LOCKED:
-      clk_in1 = #PER_PCIE_CLK pcie_clk ;
+      select_clk <= 1'b1 ;      
+    //STATE_PCIE_CLK_LOCKED:
+      //select_clk <= 1'b1 ;      
     default:
-      clk_in1 = #PER_DAC_CLK 1'b0 ;
+      select_clk <= 1'b0 ;      
   endcase
 end
 
+// Select input clk 
+assign clk_in1 = (select_clk) ? ( (select_dac) ? dac_clk : pcie_clk ) : 1'b0 ; 
 
 always @(posedge dac_clk or posedge pcie_clk or posedge reset) begin : STATE_MACHINE
      // next_state = 3'b000;
@@ -122,14 +144,18 @@ always @(posedge dac_clk or posedge pcie_clk or posedge reset) begin : STATE_MAC
         end
 
       STATE_DAC_CLK_LOCKED:
-        if ( locked == 1'b0) begin
+        if ( dac_clk == 1'b0) begin  // locked
           clr_counter <= 1'b1;
           next_state <= STATE_IDLE;
+          select_dac  <=  1'b0 ;
         end
 
       STATE_PCIE_CLK_DETECTED:
         if ( locked == 1'b1) begin          
           next_state <= STATE_WAIT_PCIE_LOCKED;
+        end  else if ( dac_clk == 1'b1 ) begin
+          clr_counter <= 1'b1;
+          next_state <= STATE_IDLE;
         end else if ( counter_expired == 1'b1) begin
           clr_counter <= 1'b1;
           next_state  <= STATE_IDLE;
@@ -144,9 +170,11 @@ always @(posedge dac_clk or posedge pcie_clk or posedge reset) begin : STATE_MAC
         if ( dac_clk == 1'b1 ) begin
           clr_counter <= 1'b1;
           next_state <= STATE_IDLE;
+          select_dac  <=  1'b0 ;
         end else if (locked == 1'b0) begin 
           clr_counter <= 1'b1;
           next_state <= STATE_IDLE;
+          select_dac  <=  1'b0 ;
         end
       default : next_state = STATE_IDLE;
     endcase
