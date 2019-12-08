@@ -17,7 +17,8 @@ module clk_wiz_0_tb ();
   localparam  ONE_NS      = 1000;
   localparam  PHASE_ERR_MARGIN   = 100; // 100ps
 
-  localparam  COUNT_PHASE = 128;
+  localparam  COUNT_PHASE   = 128;
+  localparam  counter_limit = 120;
   // we'll be using the period in many locations
   parameter time PER1    = 3.125*ONE_NS;
   localparam time PER1_1  = PER1/2;
@@ -76,9 +77,9 @@ module clk_wiz_0_tb ();
     dac_clk_reset = 1;
     test_phase = "reset";
     reset = 1;
-    #(PER1*20);
+    #(PER1*counter_limit);
     reset = 0; 
-    #(PER1*20);
+    #(PER1*counter_limit);
     // toggle dac clk on/off 
     for ( i =0; i < 4 ; i = i +1) begin
       dac_clk_reset = ~dac_clk_reset;
